@@ -2,83 +2,296 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>ICF Evaluator V3</title>
+<title>ICF Evaluator V4</title>
+
 <style>
-body { font-family: -apple-system; background:#f5f5f7; margin:0; }
-.container { max-width:700px; margin:auto; padding:20px; }
-.card { background:white; padding:25px; border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,0.08); }
-h2 { margin-bottom:20px; }
-.rating button { margin:5px; padding:10px 14px; border-radius:10px; border:1px solid #ddd; background:white; cursor:pointer; }
-.rating button.active { background:black; color:white; }
-.progress { margin-bottom:15px; font-size:14px; color:#666; }
-button.next { margin-top:20px; padding:12px; width:100%; border:none; border-radius:12px; background:black; color:white; }
+body {
+  font-family: -apple-system;
+  background: #f5f5f7;
+  margin: 0;
+}
+
+.container {
+  max-width: 1000px;
+  margin: auto;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.hidden {
+  display: none;
+}
+
+.subcard {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  margin-bottom: 15px;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.06);
+}
+
+.subcard b {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.desc {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 10px;
+}
+
+.rating button {
+  margin: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  background: white;
+  cursor: pointer;
+}
+
+.rating button.active {
+  background: black;
+  color: white;
+}
+
+button {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  background: black;
+  color: white;
+  margin-top: 20px;
+}
+
+.back {
+  background: #ddd;
+  color: black;
+  margin-right: 10px;
+}
 </style>
+
 </head>
+
 <body>
+
 <div class="container">
-<div class="card">
-<div id="progress"></div>
-<h2 id="question"></h2>
-<div class="rating" id="rating"></div>
-<button class="next" onclick="nextQuestion()">Next</button>
+
+<h1>ICF Coaching Evaluation</h1>
+
+<!-- Competency View -->
+<div id="competencyView">
+  <div class="grid" id="competencyGrid"></div>
 </div>
+
+<!-- Sub Competency View -->
+<div id="subView" class="hidden">
+  <h2 id="compTitle"></h2>
+  <div id="subList"></div>
+
+  <button class="back" onclick="goBack()">Back</button>
+  <button onclick="saveAndBack()">Save</button>
+</div>
+
 <h2 id="result"></h2>
+
 </div>
 
 <script>
-const questions = [
-"Maintains confidentiality",
-"Distinguishes coaching vs advice",
-"Maintains curiosity",
-"Client sets session goal",
-"Creates trust",
-"Listens actively",
-"Evokes awareness",
-"Facilitates growth"
+
+const competencies = [
+{
+  name: "1. Ethical Practice",
+  subs: [
+    {
+      id: "1.05",
+      title: "Confidentiality",
+      desc: "To what extent did the coach maintain confidentiality and protect client information?"
+    },
+    {
+      id: "1.06",
+      title: "Coaching vs Advice",
+      desc: "Did the coach clearly distinguish coaching from advice or consulting?"
+    }
+  ]
+},
+{
+  name: "2. Coaching Mindset",
+  subs: [
+    {
+      id: "2.09",
+      title: "Curiosity",
+      desc: "Did the coach demonstrate genuine curiosity and openness?"
+    }
+  ]
+},
+{
+  name: "3. Agreements",
+  subs: [
+    {
+      id: "3.06",
+      title: "Session Goal",
+      desc: "Was a clear session goal established by the client?"
+    }
+  ]
+},
+{
+  name: "4. Trust & Safety",
+  subs: [
+    {
+      id: "4.04",
+      title: "Empathy",
+      desc: "Did the coach show empathy and understanding?"
+    }
+  ]
+},
+{
+  name: "5. Presence",
+  subs: [
+    {
+      id: "5.06",
+      title: "Not Knowing",
+      desc: "Was the coach comfortable with uncertainty and not knowing?"
+    }
+  ]
+},
+{
+  name: "6. Listening",
+  subs: [
+    {
+      id: "6.06",
+      title: "Pattern Recognition",
+      desc: "Did the coach identify patterns in the client’s behavior or thinking?"
+    }
+  ]
+},
+{
+  name: "7. Awareness",
+  subs: [
+    {
+      id: "7.04",
+      title: "Expand Thinking",
+      desc: "Did the coach help expand the client’s thinking?"
+    }
+  ]
+},
+{
+  name: "8. Growth",
+  subs: [
+    {
+      id: "8.02",
+      title: "Action Creation",
+      desc: "Did the client generate clear and self-driven actions?"
+    }
+  ]
+}
 ];
 
-let current = 0;
-let answers = [];
+let answers = {};
+let currentComp = null;
 
-function loadQuestion() {
- document.getElementById("progress").innerText = `Question ${current+1} of ${questions.length}`;
- document.getElementById("question").innerText = questions[current];
+function renderCompetencies() {
+  const grid = document.getElementById("competencyGrid");
+  grid.innerHTML = "";
 
- const ratingDiv = document.getElementById("rating");
- ratingDiv.innerHTML = "";
-
- for(let i=1;i<=5;i++){
-   const btn = document.createElement("button");
-   btn.innerText = i;
-   btn.onclick = ()=> selectRating(i, btn);
-   ratingDiv.appendChild(btn);
- }
+  competencies.forEach((c, i) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerText = c.name;
+    card.onclick = () => openCompetency(i);
+    grid.appendChild(card);
+  });
 }
 
-function selectRating(value, btn){
- answers[current] = value;
- document.querySelectorAll(".rating button").forEach(b=>b.classList.remove("active"));
- btn.classList.add("active");
+function openCompetency(index) {
+  currentComp = index;
+
+  document.getElementById("competencyView").classList.add("hidden");
+  document.getElementById("subView").classList.remove("hidden");
+
+  const comp = competencies[index];
+  document.getElementById("compTitle").innerText = comp.name;
+
+  const list = document.getElementById("subList");
+  list.innerHTML = "";
+
+  comp.subs.forEach((s, i) => {
+    const div = document.createElement("div");
+    div.className = "subcard";
+
+    div.innerHTML = `
+      <b>${s.id} - ${s.title}</b>
+      <div class="desc">${s.desc}</div>
+      <div class="rating" id="r-${index}-${i}"></div>
+    `;
+
+    list.appendChild(div);
+
+    const rDiv = div.querySelector(".rating");
+
+    for (let j = 1; j <= 5; j++) {
+      const btn = document.createElement("button");
+      btn.innerText = j;
+
+      btn.onclick = () => {
+        answers[`${index}-${i}`] = j;
+        rDiv.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+      };
+
+      rDiv.appendChild(btn);
+    }
+  });
 }
 
-function nextQuestion(){
- if(answers[current]==null){ alert("Please select a rating"); return; }
- current++;
- if(current < questions.length){
-   loadQuestion();
- } else {
-   showResult();
- }
+function goBack() {
+  document.getElementById("subView").classList.add("hidden");
+  document.getElementById("competencyView").classList.remove("hidden");
 }
 
-function showResult(){
- let total = answers.reduce((a,b)=>a+b,0);
- let avg = (total/answers.length).toFixed(2);
- document.querySelector(".card").style.display="none";
- document.getElementById("result").innerText = `Score: ${avg}`;
+function saveAndBack() {
+  goBack();
+  calculateScore();
 }
 
-loadQuestion();
+function calculateScore() {
+  const vals = Object.values(answers);
+  if (vals.length === 0) return;
+
+  let total = 0;
+  vals.forEach(v => total += v);
+
+  let avg = (total / vals.length).toFixed(2);
+
+  document.getElementById("result").innerText = `Overall Score: ${avg}`;
+}
+
+renderCompetencies();
+
 </script>
+
 </body>
 </html>
